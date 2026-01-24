@@ -33,7 +33,6 @@ export const env = envsafe({
   BACKUP_CRON_SCHEDULE: str({
     desc: 'The cron schedule for automatic backups.',
     default: '0 5 * * *',
-    allowEmpty: true
   }),
   AWS_S3_ENDPOINT: str({
     desc: 'Custom S3 endpoint URL.',
