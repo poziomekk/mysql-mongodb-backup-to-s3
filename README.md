@@ -67,7 +67,7 @@ Each backup is stored with a timestamped filename.
 
 ### Scheduling & Debug
 
-- `BACKUP_CRON_SCHEDULE` *(optional)*  
+- `BACKUP_CRON_SCHEDULE`  
   Cron schedule for automatic backups  
   Default: `0 5 * * *`
 
