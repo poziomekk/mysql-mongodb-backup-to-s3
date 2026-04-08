@@ -1,4 +1,4 @@
-import { envsafe, str } from "envsafe";
+import { envsafe, str, bool } from "envsafe";
 
 export const env = envsafe({
   AWS_ACCESS_KEY_ID: str({
@@ -25,6 +25,10 @@ export const env = envsafe({
   BACKUP_DATABASE_PASSWORD: str({
     desc: 'The password to connect to the database server.'
   }),
+  MYSQL_ENABLED: bool({
+    desc: 'Enable MySQL backup.',
+    default: true,
+  }),
   BACKUP_DATABASE_NAME: str({
     desc: 'Name of the database to backup. Leave empty to backup all databases.',
     default: '',
@@ -41,5 +45,14 @@ export const env = envsafe({
     desc: 'Output mysql/mysqldump commands to console.',
     default: '0',
     allowEmpty: true
+  }),
+  MONGODB_ENABLED: bool({
+    desc: 'Enable MongoDB backup.',
+    default: false,
+  }),
+  MONGODB_URI: str({
+    desc: 'MongoDB connection string. If the URI contains a database name it will be backed up; otherwise all non-system databases are backed up.',
+    default: '',
+    allowEmpty: true,
   }),
 });

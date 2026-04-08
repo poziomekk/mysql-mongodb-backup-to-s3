@@ -2,6 +2,7 @@ import { createWriteStream, createReadStream, unlink } from "fs";
 import { pipeline } from "stream/promises";
 import zlib from "zlib";
 import mysql from "mysql2/promise";
+import { MongoClient } from "mongodb";
 import { S3Client, PutObjectCommand, S3ClientConfig } from "@aws-sdk/client-s3";
 import { env } from "./env";
 
@@ -91,6 +92,58 @@ const dumpToFile = async (path: string) => {
   await connection.end();
 };
 
+// Create MongoDB dump
+const dumpMongoToFile = async (path: string) => {
+  console.log(`Creating MongoDB dump at ${path}...`);
+
+  const client = new MongoClient(env.MONGODB_URI);
+  await client.connect();
+
+  const gzip = zlib.createGzip();
+  const output = createWriteStream(path);
+
+  await pipeline(
+    (async function* () {
+      // Determine which databases to dump
+      let databases: string[];
+      const uriDb = client.db().databaseName;
+      const systemDbs = ['admin', 'local', 'config'];
+
+      if (uriDb && uriDb !== 'test') {
+        databases = [uriDb];
+      } else {
+        const adminDb = client.db('admin');
+        const { databases: dbList } = await adminDb.admin().listDatabases();
+        databases = dbList
+          .map((d: { name: string }) => d.name)
+          .filter((name: string) => !systemDbs.includes(name));
+      }
+
+      for (const dbName of databases) {
+        if (isDebug()) console.log(`Dumping MongoDB database: ${dbName}`);
+        const db = client.db(dbName);
+        const collections = await db.listCollections().toArray();
+
+        for (const colInfo of collections) {
+          const colName = colInfo.name;
+          if (isDebug()) console.log(`Dumping collection: ${colName}`);
+
+          yield `\n-- db: ${dbName}, collection: ${colName}\n`;
+
+          const cursor = db.collection(colName).find({});
+          for await (const doc of cursor) {
+            yield JSON.stringify(doc) + '\n';
+          }
+        }
+      }
+    })(),
+    gzip,
+    output
+  );
+
+  await client.close();
+};
+
 // Delete local file
 const deleteFile = async (path: string) => {
   await new Promise<void>((resolve, reject) => {
@@ -110,5 +163,20 @@ export const backup = async () => {
     await deleteFile(filepath);
   }
 
-  console.log("Backup successfully created.");
+  console.log("MySQL backup successfully created.");
+};
+
+export const backupMongoDB = async () => {
+  const timestamp = new Date().toISOString().replace(/[:.]+/g, '-');
+  const filename = `backup-mongodb-${timestamp}.json.gz`;
+  const filepath = `/tmp/${filename}`;
+
+  try {
+    await dumpMongoToFile(filepath);
+    await uploadToS3({ name: filename, path: filepath });
+  } finally {
+    await deleteFile(filepath);
+  }
+
+  console.log("MongoDB backup successfully created.");
 };
