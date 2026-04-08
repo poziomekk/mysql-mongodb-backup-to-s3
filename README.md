@@ -75,7 +75,7 @@ Each backup is stored with a timestamped filename.
 - `BACKUP_DATABASE_PASSWORD`  
   Database password
 
-- `BACKUP_DATABASE_NAME` *(optional)*  
+- `MYSQL_BACKUP_DB_NAME` *(optional)*  
   Database name to back up  
   Leave empty to back up all databases (excluding system databases)
 

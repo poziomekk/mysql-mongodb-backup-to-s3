@@ -34,7 +34,7 @@ const dumpToFile = async (path: string) => {
     port: Number(env.BACKUP_DATABASE_PORT),
     user: env.BACKUP_DATABASE_USER,
     password: env.BACKUP_DATABASE_PASSWORD,
-    database: env.BACKUP_DATABASE_NAME || undefined,
+    database: env.MYSQL_BACKUP_DB_NAME || undefined,
   });
 
   // Gzip stream
@@ -45,8 +45,8 @@ const dumpToFile = async (path: string) => {
     (async function* () {
       let databases: string[] = [];
 
-      if (env.BACKUP_DATABASE_NAME) {
-        databases = [env.BACKUP_DATABASE_NAME];
+      if (env.MYSQL_BACKUP_DB_NAME) {
+        databases = [env.MYSQL_BACKUP_DB_NAME];
       } else {
         const [rows] = await connection.query(`SHOW DATABASES`);
         const excluded = ['mysql', 'sys', 'performance_schema', 'information_schema', 'innodb'];

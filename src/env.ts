@@ -37,7 +37,7 @@ export const env = envsafe({
     desc: 'Enable MySQL backup.',
     default: true,
   }),
-  BACKUP_DATABASE_NAME: str({
+  MYSQL_BACKUP_DB_NAME: str({
     desc: 'Name of the database to backup. Leave empty to backup all databases.',
     default: '',
     allowEmpty: true
