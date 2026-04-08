@@ -14,16 +14,24 @@ export const env = envsafe({
     desc: 'The AWS region where the S3 bucket is located. (try auto)'
   }),
   BACKUP_DATABASE_HOST: str({
-    desc: 'The hostname or IP address of the database server.'
+    desc: 'The hostname or IP address of the database server.',
+    default: '',
+    allowEmpty: true,
   }),
   BACKUP_DATABASE_PORT: str({
     desc: 'The port number on which the database server is listening.',
+    default: '',
+    allowEmpty: true,
   }),
   BACKUP_DATABASE_USER: str({
-    desc: 'The username to connect to the database server.'
+    desc: 'The username to connect to the database server.',
+    default: '',
+    allowEmpty: true,
   }),
   BACKUP_DATABASE_PASSWORD: str({
-    desc: 'The password to connect to the database server.'
+    desc: 'The password to connect to the database server.',
+    default: '',
+    allowEmpty: true,
   }),
   MYSQL_ENABLED: bool({
     desc: 'Enable MySQL backup.',
