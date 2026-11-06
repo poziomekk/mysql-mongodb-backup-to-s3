@@ -84,10 +84,33 @@ Each backup is stored with a timestamped filename.
 - `MONGODB_ENABLED`  
   Enable MongoDB backup (`true` to enable, default: `false`)
 
-- `MONGODB_URI` *(required when MongoDB is enabled)*  
-  MongoDB connection string  
+Set exactly one of the following when MongoDB is enabled. The service exits at startup if both are set.
+
+- `MONGODB_URI`  
+  Connection string for a single cluster  
   If the URI includes a database name it will be backed up; otherwise all non-system databases are backed up  
-  Example: `mongodb://user:password@host:27017/mydb`
+  Example: `mongodb://user:password@host:27017/mydb`  
+  Backups are stored in the bucket root: `backup-mongodb-<timestamp>.json.gz`
+
+- `MONGODB_TARGETS`  
+  JSON array of clusters to back up, any number of organizations and projects, with one entry per `org` and `project` pair  
+  `org` and `project` may only contain letters, digits, dots, dashes and underscores  
+  Each `uri` follows the same database name rule as `MONGODB_URI`, and special characters in passwords must be URL-encoded  
+  Example: `[{"org":"acme","project":"shop","uri":"mongodb+srv://backup:password@prod.abc.mongodb.net"}]`  
+  Backups are stored as `mongodb/<org>/<project>/backup-mongodb-<timestamp>.json.gz`
+
+Clusters are backed up one at a time, and a failed cluster does not stop the others.
+
+On MongoDB Atlas, network access and database users are configured per project. In every project, allow the IP of the backup service and create a user with the `readAnyDatabase` role.
+
+### MongoDB Backup Format
+
+After decompressing, each line of a MongoDB backup is one of the following:
+
+- `-- {...}` starts a collection or view. The JSON after the prefix holds `db`, `collection`, `type`, `options` and `indexes`
+- `{...}` is a document of the current collection, in canonical Extended JSON, which keeps types such as `ObjectId`, `Date` and `Long`
+
+Parse the lines with `EJSON.parse` from the `bson` package, or split them per collection and load them with `mongoimport`. Indexes and collection options are not restored by `mongoimport` and must be recreated from the `-- ` lines.
 
 ### Scheduling & Debug
 

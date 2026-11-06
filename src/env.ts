@@ -1,4 +1,5 @@
 import { envsafe, str, bool } from "envsafe";
+import { MongoClient } from "mongodb";
 
 export const env = envsafe({
   AWS_ACCESS_KEY_ID: str({
@@ -59,8 +60,76 @@ export const env = envsafe({
     default: false,
   }),
   MONGODB_URI: str({
-    desc: 'MongoDB connection string. If the URI contains a database name it will be backed up; otherwise all non-system databases are backed up.',
+    desc: 'MongoDB connection string for a single cluster. If the URI contains a database name it will be backed up; otherwise all non-system databases are backed up.',
+    default: '',
+    allowEmpty: true,
+  }),
+  MONGODB_TARGETS: str({
+    desc: 'JSON array of MongoDB clusters to back up, each with org, project and uri. Use instead of MONGODB_URI.',
     default: '',
     allowEmpty: true,
   }),
 });
+
+export type MongoTarget = { name: string, keyPrefix: string, uri: string };
+
+const assertValidUri = (uri: string, label: string) => {
+  try {
+    new MongoClient(uri);
+  } catch {
+    throw new Error(`${label} is not a valid MongoDB connection string.`);
+  }
+};
+
+// Error messages must never include the raw values, because they contain credentials
+export const getMongoTargets = (): MongoTarget[] => {
+  if (env.MONGODB_URI && env.MONGODB_TARGETS) {
+    throw new Error('Set either MONGODB_URI or MONGODB_TARGETS, not both.');
+  }
+
+  if (env.MONGODB_URI) {
+    assertValidUri(env.MONGODB_URI, 'MONGODB_URI');
+    return [{ name: 'default', keyPrefix: '', uri: env.MONGODB_URI }];
+  }
+
+  if (!env.MONGODB_TARGETS) {
+    throw new Error('MONGODB_ENABLED is true but both MONGODB_URI and MONGODB_TARGETS are missing.');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(env.MONGODB_TARGETS);
+  } catch {
+    throw new Error('MONGODB_TARGETS is not valid JSON.');
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error('MONGODB_TARGETS must be a non-empty JSON array.');
+  }
+
+  const names = new Set<string>();
+
+  return parsed.map((item, index) => {
+    const label = `MONGODB_TARGETS[${index}]`;
+
+    // These values become part of the S3 key
+    for (const field of ['org', 'project']) {
+      if (typeof item?.[field] !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(item[field])) {
+        throw new Error(`${label}.${field} is required and may only contain letters, digits, dots, dashes and underscores.`);
+      }
+    }
+
+    if (typeof item.uri !== 'string') {
+      throw new Error(`${label}.uri is required.`);
+    }
+    assertValidUri(item.uri, `${label}.uri`);
+
+    const name = `${item.org}/${item.project}`;
+    if (names.has(name)) {
+      throw new Error(`${label} duplicates ${name}.`);
+    }
+    names.add(name);
+
+    return { name, keyPrefix: `mongodb/${name}/`, uri: item.uri };
+  });
+};
