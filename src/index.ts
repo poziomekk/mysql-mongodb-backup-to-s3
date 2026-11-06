@@ -1,5 +1,5 @@
 import { CronJob } from "cron";
-import { backup, backupAllMongoDB } from "./backup";
+import { backup, backupAllMongoDB, backupAllR2 } from "./backup";
 import { env, getMongoTargets, MongoTarget } from "./env";
 
 if (env.MYSQL_ENABLED) {
@@ -35,5 +35,9 @@ const job = new CronJob(env.BACKUP_CRON_SCHEDULE, async () => {
 });
 
 job.start();
+
+if (env.R2_BACKUP_ENABLED) {
+  new CronJob(env.R2_BACKUP_CRON_SCHEDULE, () => backupAllR2()).start();
+}
 
 console.log("Backup cron scheduler started.");

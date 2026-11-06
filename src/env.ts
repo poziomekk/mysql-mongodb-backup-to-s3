@@ -69,6 +69,14 @@ export const env = envsafe({
     default: '',
     allowEmpty: true,
   }),
+  R2_BACKUP_ENABLED: bool({
+    desc: 'Enable incremental backup of all other buckets available to the S3 credentials into AWS_S3_BUCKET.',
+    default: false,
+  }),
+  R2_BACKUP_CRON_SCHEDULE: str({
+    desc: 'The cron schedule for R2 backups.',
+    default: '0 4 * * 0',
+  }),
 });
 
 export type MongoTarget = { name: string, keyPrefix: string, uri: string };

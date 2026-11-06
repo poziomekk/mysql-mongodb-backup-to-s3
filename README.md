@@ -13,6 +13,7 @@ The service connects directly to MySQL/MongoDB, generates dumps, compresses them
 
 - Supports MySQL and MariaDB
 - Supports MongoDB
+- Incrementally copies all other Cloudflare R2 buckets in the account, such as image storage
 - Uploads backups to any S3-compatible storage
 - Creates compressed `.sql.gz` (MySQL) and `.gz` (MongoDB) backups
 - Can back up a single database or all databases
@@ -38,6 +39,15 @@ The service connects directly to MySQL/MongoDB, generates dumps, compresses them
 5. Cleans up temporary files
 
 Each backup is stored with a timestamped filename.
+
+### Cloudflare R2
+
+1. Lists all buckets available to the S3 credentials, except `AWS_S3_BUCKET`
+2. Lists the objects in each bucket and in the backup
+3. Finds objects that are missing from the backup or have a different size
+4. Copies them to `AWS_S3_BUCKET`, 5 at a time, through temporary files that are removed right after each upload
+
+Objects are stored once and keep their original keys. Objects deleted from R2 stay in the backup. A replaced object with the same size is not detected, and a replaced object with a different size overwrites the old copy.
 
 ## Environment Variables
 
@@ -111,6 +121,20 @@ After decompressing, each line of a MongoDB backup is one of the following:
 - `{...}` is a document of the current collection, in canonical Extended JSON, which keeps types such as `ObjectId`, `Date` and `Long`
 
 Parse the lines with `EJSON.parse` from the `bson` package, or split them per collection and load them with `mongoimport`. Indexes and collection options are not restored by `mongoimport` and must be recreated from the `-- ` lines.
+
+### Cloudflare R2 Configuration
+
+- `R2_BACKUP_ENABLED`  
+  Enable R2 backup (`true` to enable, default: `false`)  
+  Uses the S3 configuration above for both reading the buckets and storing the backup  
+  The credentials must be able to list all buckets and read them, and write to `AWS_S3_BUCKET`  
+  Objects are stored as `r2/<bucket>/<original key>`
+
+- `R2_BACKUP_CRON_SCHEDULE`  
+  Cron schedule for R2 backups  
+  Default: `0 4 * * 0` (Sundays at 4:00)
+
+Buckets are backed up one at a time, and a failed bucket does not stop the others. Objects that fail to copy are tried again on the next run. New buckets are included automatically. The backup is in the same account as the source, so it does not protect against losing access to the account or a leaked key.
 
 ### Scheduling & Debug
 
